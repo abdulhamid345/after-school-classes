@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>After School Classes</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+
+<body>
+    <div id="app">
+        <div>
+            <h1>After School Classes</h1>
+            <button class="cart-button" @click="showCart = !showCart">
+              Shopping Cart ({{cart.length}})
+            </button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" v-model="searchQuery" @input="searchLessons" placeholder="Search lessons...">
+        </div>
+
+        <div class="sort-controls">
+            <select v-model="sortBy">
+                <option value="subject">Subject</option>
+                <option value="location">Location</option>
+                <option value="price">Price</option>
+                <option value="spaces">Spaces</option>
+            </select>
+            <select v-model="sortOrder">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+            </select>
+        </div>
+
+        <main v-if="!showCart">
+            <div class="lessons-grid">
+                <div class="lesson-card" v-for="lesson in sortedLessons" :key="lesson._id">
+                    <h2>{{lesson.subject}}</h2>
+                    <p>{{lesson.location}}</p>
+                    <p>${{lesson.price}}</p>
+                    <p>Spaces: {{lesson.spaces}}</p>
+                    <button class="add-to-cart-btn" @click="addToCart(lesson)" :disabled="lesson.spaces <= 0">
+                        Add to Cart
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <div class="shopping-cart" v-else>
+            <h2>Shopping Cart</h2>
+            <div class="empty-cart" v-if="cart.length === 0">
+                Your cart is empty
+            </div>
+            <template v-else>
+                <div class="cart-item" v-for="item in cart" :key="item._id">
+                    <div class="item-details">
+                        <h3>{{item.subject}}</h3>
+                        <p>Location: {{item.location}}</p>
+                        <p>Price: ${{item.price}}</p>
+                    </div>
+                    <button class="remove-btn" @click="removeFromCart(item)">Remove</button>
+                </div>
+
+                <div class="checkout-form">
+                    <h3>Checkout</h3>
+                    <input type="text" v-model="checkoutForm.name" placeholder="Name">
+                    <input type="text" v-model="checkoutForm.phone" placeholder="Phone">
+                    <button class="checkout-btn" @click="submitOrder" :disabled="!isCheckoutValid">
+                        Checkout
+                    </button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                lessons: [],
+                cart: [],
+                showCart: false,
+                sortBy: 'subject',
+                sortOrder: 'asc',
+                searchQuery: '',
+                checkoutForm: {
+                    name: '',
+                    phone: ''
+                }
+            },
+            computed: {
+                sortedLessons() {
+                    return [...this.lessons].sort((a, b) => {
+                        let modifier = this.sortOrder === 'asc' ? 1 : -1;
+                        if (this.sortBy === 'price' || this.sortBy === 'spaces') {
+                            return (a[this.sortBy] - b[this.sortBy]) * modifier;
+                        }
+                        return a[this.sortBy].localeCompare(b[this.sortBy]) * modifier;
+                    });
+                },
+                isCheckoutValid() {
+                    const nameRegex = /^[A-Za-z\s]+$/;
+                    const phoneRegex = /^[0-9]+$/;
+                    return (
+                        this.cart.length > 0 &&
+                        nameRegex.test(this.checkoutForm.name) &&
+                        phoneRegex.test(this.checkoutForm.phone)
+                    );
+                }
+            },
+            methods: {
+                fetchLessons() {
+                    fetch('http://localhost:3001/api/lessons')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.lessons = data;
+                        })
+                        .catch(error => console.error('Error:', error));
+                },
+                searchLessons() {
+                    if (this.searchQuery.trim() === '') {
+                        this.fetchLessons(); // Reload all lessons if search query is cleared
+                    } else {
+                        fetch(`http://localhost:3001/api/search?q=${this.searchQuery}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                this.lessons = data;
+                            })
+                            .catch(error => console.error('Error searching lessons:', error));
+                    }
+                },
+                addToCart(lesson) {
+                    if (lesson.spaces > 0) {
+                        fetch(`http://localhost:3001/api/lessons/${lesson._id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ spaces: lesson.spaces - 1 })
+                        })
+                            .then(response => response.json())
+                            .then(() => {
+                                lesson.spaces--;
+                                this.cart.push({ ...lesson });
+                                this.fetchLessons(); // Refresh lessons after updating
+                            })
+                            .catch(error => console.error('Error updating spaces:', error));
+                    }
+                },
+                removeFromCart(item) {
+                    const index = this.cart.indexOf(item);
+                    if (index > -1) {
+                        const lesson = this.lessons.find(l => l._id === item._id);
+                        if (lesson) {
+                            fetch(`http://localhost:3001/api/lessons/${item._id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ spaces: lesson.spaces + 1 })
+                            })
+                                .then(response => response.json())
+                                .then(() => {
+                                    lesson.spaces++;
+                                    this.cart.splice(index, 1);
+                                    this.fetchLessons(); // Refresh lessons after updating
+                                })
+                                .catch(error => console.error('Error updating spaces:', error));
+                        }
+                    }
+                },
+                submitOrder() {
+                    if (!this.isCheckoutValid) return;
+
+                    const order = {
+                        name: this.checkoutForm.name,
+                        phone: this.checkoutForm.phone,
+                        lessons: this.cart.map(item => item._id)
+                    };
+
+                    fetch('http://localhost:3001/api/orders', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(order)
+                    })
+                        .then(response => response.json())
+                        .then(() => {
+                            alert('Order submitted successfully!');
+                            this.cart = [];
+                            this.showCart = false;
+                            this.checkoutForm.name = '';
+                            this.checkoutForm.phone = '';
+                            this.fetchLessons(); // Refresh lessons after submitting the order
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Error submitting order. Please try again.');
+                        });
+                }
+            },
+            mounted() {
+                this.fetchLessons();
+            }
+        });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-container {
+            margin-bottom: 20px;
+            width: 100%;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+
+        .sort-controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .sort-controls select {
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .lessons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .lesson-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .lesson-icon {
+            font-size: 2em;
+            color: #4a90e2;
+            margin-bottom: 10px;
+        }
+
+        .add-to-cart-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .add-to-cart-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .cart-button {
+            padding: 10px 20px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .cart-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .shopping-cart {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .remove-btn {
+            padding: 5px 10px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .checkout-form {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkout-form input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .checkout-btn {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .checkout-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</body>
+
+</html>

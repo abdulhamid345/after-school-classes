@@ -1,0 +1,72 @@
+[
+    {
+        "subject": "Mathematics",
+        "location": "Hendon",
+        "price": 100,
+        "spaces": 5,
+        "icon": "fas fa-calculator"
+    },
+    {
+        "subject": "English",
+        "location": "Colindale",
+        "price": 90,
+        "spaces": 5,
+        "icon": "fas fa-book"
+    },
+    {
+        "subject": "Science",
+        "location": "Brent Cross",
+        "price": 110,
+        "spaces": 5,
+        "icon": "fas fa-flask"
+    },
+    {
+        "subject": "Art",
+        "location": "Golders Green",
+        "price": 85,
+        "spaces": 5,
+        "icon": "fas fa-palette"
+    },
+    {
+        "subject": "Music",
+        "location": "Hendon",
+        "price": 95,
+        "spaces": 5,
+        "icon": "fas fa-music"
+    },
+    {
+        "subject": "Physical Education",
+        "location": "Colindale",
+        "price": 80,
+        "spaces": 5,
+        "icon": "fas fa-running"
+    },
+    {
+        "subject": "Computer Science",
+        "location": "Brent Cross",
+        "price": 120,
+        "spaces": 5,
+        "icon": "fas fa-laptop-code"
+    },
+    {
+        "subject": "History",
+        "location": "Golders Green",
+        "price": 88,
+        "spaces": 5,
+        "icon": "fas fa-landmark"
+    },
+    {
+        "subject": "Geography",
+        "location": "Hendon",
+        "price": 92,
+        "spaces": 5,
+        "icon": "fas fa-globe-americas"
+    },
+    {
+        "subject": "Drama",
+        "location": "Colindale",
+        "price": 87,
+        "spaces": 5,
+        "icon": "fas fa-theater-masks"
+    }
+]
